@@ -1,6 +1,8 @@
 package services
 
 import (
+	"net/http"
+
 	"github.com/agrotention/backend/dto"
 	"github.com/agrotention/backend/models"
 	"github.com/agrotention/backend/utils"
@@ -28,36 +30,45 @@ func (s *UserService) ChangePassword(data dto.ReqUserChangePassword) (*dto.ResUs
 func (s *UserService) Delete(data dto.ReqUserDelete) (*dto.ResUserDelete, utils.HTTPError) {
 	return nil, utils.ErrNotImplemented
 }
+
+// =========== Detail user service
 func (s *UserService) Detail(data dto.ReqUserDetail) (*dto.ResUserDetail, utils.HTTPError) {
 	return nil, utils.ErrNotImplemented
 }
+
+// =========== Disable user service
 func (s *UserService) Disable(data dto.ReqUserDisable) (*dto.ResUserDisable, utils.HTTPError) {
 	return nil, utils.ErrNotImplemented
 }
+
+// =========== List user service
 func (s *UserService) List(data dto.ReqUserList) (*dto.ResUserList, utils.HTTPError) {
 	return nil, utils.ErrNotImplemented
 }
+
+// =========== Login user service
 func (s *UserService) Login(data dto.ReqUserLogin) (*dto.ResUserLogin, utils.HTTPError) {
 	return nil, utils.ErrNotImplemented
 }
 
+// =========== Register user service
 func (s *UserService) Register(data dto.ReqUserRegister) (*dto.ResUserRegister, utils.HTTPError) {
 	// Validate Request
-	err := utils.Validate.Struct(data)
-	if err != nil {
+	if err := utils.Validate.Struct(data); err != nil {
+		utils.LogErr.Println(err) // LOG
 		if validationError, ok := err.(validator.ValidationErrors); ok {
 			return nil, utils.TranslateValidationError(validationError)
-		} else {
-			return nil, utils.ErrInternal
 		}
-	}
-	// Check Unique Email
-	count, err := s.countEmail(data.Email)
-	if err != nil {
 		return nil, utils.ErrInternal
 	}
-	if count != 0 {
-		return nil, utils.NewErrWithMessage(409, "email already exist")
+
+	// Check Unique Email
+	if count, err := s.countEmail(data.Email); err != nil {
+		utils.LogErr.Println(err) // LOG
+		return nil, utils.ErrInternal
+	} else if count != 0 {
+		utils.LogErr.Printf("email %s try to create account, but already exist", data.Email) // LOG
+		return nil, utils.NewErrWithMessage(http.StatusConflict, "email already exist")
 	}
 
 	// Create New user
@@ -67,13 +78,15 @@ func (s *UserService) Register(data dto.ReqUserRegister) (*dto.ResUserRegister, 
 		UserInfo: &models.UserInfo{
 			DisplayName: &data.DisplayName,
 		},
+		UserRole: &models.UserRole{},
 	}
 
 	// Query
-	err = s.db.Create(&user).Error
-	if err != nil {
+	if err := s.db.Create(&user).Error; err != nil {
+		utils.LogErr.Println(err) // LOG
 		return nil, utils.ErrInternal
 	}
+
 	return &dto.ResUserRegister{ID: user.ID}, nil
 }
 

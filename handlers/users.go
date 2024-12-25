@@ -6,6 +6,7 @@ import (
 
 	"github.com/agrotention/backend/dto"
 	"github.com/agrotention/backend/services"
+	"github.com/agrotention/backend/utils"
 )
 
 // =========== Type User Handler
@@ -107,20 +108,26 @@ func (h *UserHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 // Signup (register) new user
 func (h *UserHandler) handleRegister(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
 	// Read JSON data
 	var data dto.ReqUserRegister
-	err := json.NewDecoder(r.Body).Decode(&data)
 	defer r.Body.Close()
-
-	// Send to service
-	res, svcErr := h.svc.Register(data)
-	if err != nil {
-		svcErr.Send(w)
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		utils.LogErr.Println(err)
+		utils.ErrInternal.Send(w)
 		return
 	}
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(201)
-	json.NewEncoder(w).Encode(res)
+
+	// Send to service
+	if res, err := h.svc.Register(data); err != nil {
+		err.Send(w)
+		return
+	} else {
+		w.Header().Add("Content-Type", "application/json")
+		w.WriteHeader(201)
+		json.NewEncoder(w).Encode(res)
+	}
+
 }
 
 // Update user info
