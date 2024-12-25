@@ -20,14 +20,17 @@ func NewUserHandler(svc *services.UserService) *UserHandler {
 
 // =========== Register Handler to Mux
 func (h *UserHandler) RegisterRouter(mux *http.ServeMux) {
+	// Auth
 	mux.HandleFunc("PUT /auth/change-email", h.handleChangeEmail)
 	mux.HandleFunc("PUT /auth/change-password", h.handleChangePassword)
+	mux.HandleFunc("POST /auth/login", h.handleLogin)
+	mux.HandleFunc("POST /auth/signup", h.handleRegister)
+
+	// User
 	mux.HandleFunc("DELETE /users/{id}/delete", h.handleDelete)
 	mux.HandleFunc("GET /users/{id}", h.handleDetail)
 	mux.HandleFunc("DELETE /users/{id}", h.handleDisable)
 	mux.HandleFunc("GET /users", h.handleList)
-	mux.HandleFunc("POST /auth/login", h.handleLogin)
-	mux.HandleFunc("POST /auth/signup", h.handleRegister)
 	mux.HandleFunc("PUT /users/{id}", h.handleUpdate)
 }
 
@@ -104,11 +107,19 @@ func (h *UserHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 // Signup (register) new user
 func (h *UserHandler) handleRegister(w http.ResponseWriter, r *http.Request) {
+	// Read JSON data
 	var data dto.ReqUserRegister
-	res, err := h.svc.Register(data)
+	err := json.NewDecoder(r.Body).Decode(&data)
+	defer r.Body.Close()
+
+	// Send to service
+	res, svcErr := h.svc.Register(data)
 	if err != nil {
-		panic("unhandled")
+		svcErr.Send(w)
+		return
 	}
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(201)
 	json.NewEncoder(w).Encode(res)
 }
 
